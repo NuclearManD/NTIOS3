@@ -1,3 +1,6 @@
+#ifndef FS_HPP
+#define FS_HPP
+
 #include "stdbool.h"
 #include "Arduino.h"
 #include <SD.h>
@@ -80,3 +83,5 @@ class StreamFile: FileHandle{
 
 FileHandle* open(char* name, int mode);
 FileHandle* open(int id, int mode);
+
+#endif

@@ -1,6 +1,6 @@
 #include "fs.hpp"
 
-FileHandle* root_dir;
+//FileHandle* root_dir;
 
 FileHandle* sys_files[] = {
   (FileHandle*)(new StreamFile(&Serial))
@@ -22,7 +22,7 @@ bool fs_setup(){
  * 
  */
 
-FileHandle* FileHandle::openNextFile(){
+/*FileHandle* FileHandle::openNextFile(){
   return 0;
 }
 int FileHandle::rewind(){
@@ -31,15 +31,65 @@ int FileHandle::rewind(){
 
 bool FileHandle::is_dir(){
   return false;
-}
+}*/
 
 int FileHandle::print(char* buffer){
   return write(buffer, strlen(buffer));
 }
+
 int FileHandle::println(char* buffer){
   int o = write(buffer, strlen(buffer))+1;
   write('\n');
   return o;
+}
+
+int FileHandle::printf(char* fmt, ...){
+  va_list args;
+  va_start(args, fmt);
+  return this -> printfv(fmt, args);
+}
+
+int FileHandle::printfv(char* fmt, va_list args){
+  int chars_written = 0;
+  char* lsgood = fmt;
+
+  while(*fmt){
+    if((*fmt) == '%'){
+      chars_written+=write(lsgood, fmt-lsgood);
+
+      // TODO: Instead of buf[11] make and use a print(int n) function
+      // TODO: Change write(char c) to return int and use it in this function
+      char buf[11];
+      switch(*(++fmt)){
+        case 0:
+          fmt--;
+          break;
+        case 'i':
+          chars_written += print(itoa(va_arg(args, int), buf, 10));
+          break;
+        case 'p':
+          chars_written += print("@0x");
+        case 'h':
+        case 'H':
+          chars_written += print(itoa(va_arg(args, int), buf, 16));
+          break;
+        case 's':
+          chars_written += print(va_arg(args, char*));
+          break;
+        case 'c':
+          write(va_arg(args, char));
+          chars_written++;
+          break;
+        default:
+          chars_written += write(fmt-1, 2);
+      }
+      lsgood = fmt+1;
+    }
+
+    fmt++;
+  }
+  chars_written+=write(lsgood, fmt-lsgood);
+  return chars_written;
 }
 
 /*
@@ -80,7 +130,11 @@ bool SDFile::flush(){
   return true;
 }
 FileHandle* SDFile::openNextFile(){
-  return (FileHandle*)(new SDFile(file.openNextFile()));
+  File f = file.openNextFile();
+  if (f)
+    return (FileHandle*)(new SDFile(f));
+  else
+    return 0;
 }
 
 int SDFile::rewind(){
@@ -132,9 +186,11 @@ byte StreamFile::read(){
   if(available())loc++;
   return stream->read();
 }
+
 int StreamFile::available(){
   return stream->available();
 }
+
 int StreamFile::seek(int i){
   return loc;
 }
@@ -148,6 +204,17 @@ char* StreamFile::name(){
   return "?";
 }
 
+FileHandle* StreamFile::openNextFile(){
+  return 0;
+}
+int StreamFile::rewind(){
+  return -1;
+}
+
+bool StreamFile::is_dir(){
+  return false;
+}
+
 /*
  * 
  * Global functions for file operations
@@ -156,11 +223,23 @@ char* StreamFile::name(){
 
 FileHandle* open(char* name, int mode){
   File f = SD.open(name, mode);
+
   if(f)return (FileHandle*)(new SDFile(f));
   return 0;
 }
+
 FileHandle* open(int id, int mode){
-  if(id<100)
+  Task* task = get_task_by_id(current_task_id());
+
+  if (id < 100)
     return sys_files[id];
-  else if(id<100+
+
+  if (task)
+    return task -> getFileHandle(id, mode);
+  else{
+    if (id<=102)
+      return sys_files[0];
+    else
+      return 0;
+  }
 }

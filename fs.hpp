@@ -33,12 +33,18 @@ class FileHandle{
     virtual int seek(int i) = 0;
     virtual bool flush() = 0;
     virtual char* name() = 0;
-    FileHandle* openNextFile();
-    int rewind();
-    bool is_dir();
+    virtual FileHandle* openNextFile() = 0;
+    virtual int rewind() = 0;
+    virtual bool is_dir() = 0;
     int print(char* buffer);
     int println(char* buffer);
+    int printf(char* fmt, ...);
+    int printfv(char* fmt, va_list args);
+    
 };
+
+// This include has to be here for task to have access to FileHandle
+#include "task.hpp"
 
 class SDFile: FileHandle{
   public:
@@ -51,7 +57,7 @@ class SDFile: FileHandle{
     byte read();
     int seek(int i);
     bool flush();
-    FileHandle* openNextFile();
+    FileHandle* openNextFile() override;
     int rewind();
     bool is_dir();
     int available();
